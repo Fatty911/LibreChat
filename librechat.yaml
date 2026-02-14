@@ -1,0 +1,60 @@
+version: 1.2.1
+cache: true
+
+# 文件上传配置
+fileConfig:
+  endpoints:
+    default:
+      fileLimit: 10
+      fileSizeLimit: 25serverFileSizeLimit: 100
+
+# 接口配置
+endpoints:
+  # --- OpenAI（内置端点，自动读取 OPENAI_REVERSE_PROXY） ---
+  openAI:
+    titleModel: "gpt-5-2"
+    summarize: true
+    models:
+      default:
+        - "gpt-5-2-pro"
+        - "gpt-5-2"
+        - "gpt-5-3-codex"
+        - "gpt-5-3-garlic"
+        fetch: false
+#fetch: false 表示不从 API 动态拉取模型列表，只用你手动指定的。这样你能精确控制显示哪些模型。
+
+  # --- Anthropic（内置端点，自动读取 ANTHROPIC_REVERSE_PROXY） ---
+  anthropic:
+    titleModel: "claude-opus-4-6"
+    summarize: true
+    models:
+      default:
+        - "claude-opus-4-6-thinking"
+        - "claude-opus-4-6"
+      fetch: false
+
+  # --- Google Gemini（自定义端点，baseURL 从环境变量读取） ---
+  # --- xAI Grok（自定义端点） ---
+  custom:
+    - name: "Google"
+      apiKey: "${GOOGLE_KEY}"
+      baseURL: "${GOOGLE_BASE_URL}"
+      models:
+        default:
+          - "gemini-3-pro"
+          - "gemini-3-flash"
+          - "gemini-3-pro-preview"
+        fetch: false
+      titleModel: "gemini-3-flash"
+      summarize: true
+      dropParams:
+        - "stop"- name: "xAI"
+      apiKey: "${XAI_API_KEY}"
+      baseURL: "${XAI_BASE_URL}"
+      models:
+        default:
+          - "grok-4-1-fast-reasoning"
+          - "grok-4-1-fast-non-reasoning"
+        fetch: false
+      titleModel: "grok-4-1-fast-non-reasoning"
+      summarize: true
