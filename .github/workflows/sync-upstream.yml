@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   sync:
@@ -41,15 +40,4 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git merge upstream/main --no-edit
-
-      - name: Create Pull Request
-        if: steps.check.outputs.need_sync == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: sync with upstream LibreChat"
-          title: "Sync with upstream LibreChat"
-          body: |
-            Automated PR to sync with upstream LibreChat main branch.
-          branch: sync-upstream
-          delete-branch: true
+          git push
