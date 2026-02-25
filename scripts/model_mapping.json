@@ -1,26 +1,42 @@
 {
-  "GPT-5.3 Pro": {
-    "provider": "openAI",
-    "model_id": "gpt-5-3-codex"
-  },
-  "GPT-5.3": {
-    "provider": "openAI",
-    "model_id": "gpt-5-3-garlic"
-  },
-  "Claude Opus 4.6": {
+  "claude-opus-4-6": {
     "provider": "anthropic",
     "model_id": "claude-opus-4-6"
   },
-  "Claude 4.6 Opus": {
-    "provider": "anthropic",
-    "model_id": "claude-opus-4-6"
-  },
-  "Claude 4.6 Thinking": {
+  "claude-opus-4-6-thinking": {
     "provider": "anthropic",
     "model_id": "claude-opus-4-6-thinking"
   },
-  "Claude Opus 4.6 Thinking": {
+  "claude-sonnet-4-6": {
     "provider": "anthropic",
-    "model_id": "claude-opus-4-6-thinking"
+    "model_id": "claude-sonnet-4-6"
+  },
+  "gpt-5.2-chat-latest-20260210": {
+    "provider": "openAI",
+    "model_id": "gpt-5-2-pro"
+  },
+  "gpt-5.1-high": {
+    "provider": "openAI",
+    "model_id": "gpt-5-2-pro"
+  },
+  "gpt-5.2-high": {
+    "provider": "openAI",
+    "model_id": "gpt-5-2-pro"
+  },
+  "gpt-5.2": {
+    "provider": "openAI",
+    "model_id": "gpt-5-2"
+  },
+  "gpt-5.1": {
+    "provider": "openAI",
+    "model_id": "gpt-5-2"
+  },
+  "gpt-4.5-preview-2025-02-27": {
+    "provider": "openAI",
+    "model_id": "gpt-5-2"
+  },
+  "chatgpt-4o-latest-20250326": {
+    "provider": "openAI",
+    "model_id": "gpt-5-2"
   }
 }
