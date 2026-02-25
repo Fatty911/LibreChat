@@ -12,73 +12,242 @@ from pathlib import Path
 import requests
 import yaml
 
-# --- 配置 ---
 TOP_N = 30
-ARENA_API_URL = "https://lmarena.ai/api/leaderboard"
-# 备用：HuggingFace 上的排行榜数据
-HF_FALLBACK_URL = "https://huggingface.co/api/spaces/lmarena-ai/chatbot-arena-leaderboard"
 MAPPING_FILE = Path(__file__).parent / "model_mapping.json"
 YAML_FILE = Path(__file__).parent.parent / "librechat.yaml"
 
-def fetch_leaderboard() -> list[str]:
-    """获取排行榜前 TOP_N 名的模型名称列表"""
-    #尝试直接从 lmarena.ai API 获取
-    try:
-        resp = requests.get(ARENA_API_URL, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        # API 返回格式可能是 [{"rank": 1, "model": "GPT-5.2 Pro", ...}, ...]
-        # 根据实际返回结构调整解析逻辑
-        if isinstance(data, list):
-            models = [item.get("model") or item.get("name", "") for item in data[:TOP_N]]
-            return [m for m in models if m]
-    except Exception as e:
-        print(f"[WARN] lmarena.ai API 请求失败: {e}，尝试备用方案...")
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/json,application/xhtml+xml,*/*',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
 
-    # 备用：爬取网页
-    try:
-        resp = requests.get("https://lmarena.ai/leaderboard", timeout=30)
-        resp.raise_for_status()
-        #尝试从页面中提取 JSON数据（通常嵌在 script 标签或 __NEXT_DATA__ 中）
-        match = re.search(r'__NEXT_DATA__.*?({.*?})\s*</script>', resp.text, re.DOTALL)
-        if match:
-            page_data = json.loads(match.group(1))
-            # 根据实际页面结构解析，这里是示意
-            # 你可能需要根据实际 HTML 结构调整
-            print("[WARN] 网页解析需要根据实际结构调整，请检查输出")# 最简单的备用：用正则提取排行榜中的模型名
-        # 这很脆弱，但作为 fallback 可以接受
-        model_pattern = re.findall(r'"model_name":\s*"([^"]+)"', resp.text)
-        if model_pattern:
-            return model_pattern[:TOP_N]
-    except Exception as e:
-        print(f"[ERROR] 备用方案也失败: {e}")
+KNOWN_ORG_PREFIXES = [
+    'Anthropic', 'MoonshotAI', 'Bytedance', 'ByteDance', 'Tencent', 'Meta', 'Flux',
+    'Stability', 'RWKV', 'HuggingFace', 'Azure', 'OpenChat', '01.AI',
+    'Nvidia', 'NVIDIA', 'Snowflake', 'InternLM', 'Cohere', 'Stepfun', 'Minimax',
+    'MiniMax', 'NexusFlow', 'Nous', 'DeepSeek', 'Xiaomi', 'Google', 'xAI', 'OpenAI',
+    'Zhipu', 'Baidu', 'Alibaba', 'Mistral', 'IBM', 'Amazon', 'Databricks', 'Upstage',
+    'Microsoft', 'Stability AI', 'Black Forest Labs',
+]
 
+ORG_TO_PROVIDER = {
+    'Anthropic': 'Anthropic',
+    'MoonshotAI': 'MoonshotAI',
+    'Bytedance': 'Bytedance',
+    'ByteDance': 'Bytedance',
+    'Tencent': 'Tencent',
+    'Meta': 'Meta',
+    'Flux': 'Black Forest Labs',
+    'Stability': 'Stability',
+    'Stability AI': 'Stability',
+    'Nvidia': 'Nvidia',
+    'NVIDIA': 'Nvidia',
+    'InternLM': 'InternLM',
+    'Cohere': 'Cohere',
+    'Stepfun': 'Stepfun',
+    'Minimax': 'Minimax',
+    'MiniMax': 'Minimax',
+    'DeepSeek': 'DeepSeek',
+    'Xiaomi': 'Xiaomi',
+    'Google': 'Google',
+    'xAI': 'xAI',
+    'OpenAI': 'OpenAI',
+    'Zhipu': 'Zhipu',
+    'Baidu': 'Baidu',
+    'Alibaba': 'Alibaba',
+    'Mistral': 'Mistral',
+    'IBM': 'IBM',
+    'Amazon': 'Amazon',
+    'Databricks': 'Databricks',
+    'Microsoft': 'Microsoft',
+    'Black Forest Labs': 'Black Forest Labs',
+}
+
+PROVIDER_PATTERNS = [
+    (re.compile(r'^claude', re.I), 'Anthropic'),
+    (re.compile(r'^gemini|^gemma|^veo-', re.I), 'Google'),
+    (re.compile(r'^grok', re.I), 'xAI'),
+    (re.compile(r'^gpt-|^o[1-9]-|^o[1-9]$|^chatgpt', re.I), 'OpenAI'),
+    (re.compile(r'^glm-|^chatglm', re.I), 'Zhipu'),
+    (re.compile(r'^deepseek', re.I), 'DeepSeek'),
+    (re.compile(r'^mixtral|^mistral|^magistral', re.I), 'Mistral'),
+    (re.compile(r'^llama|^codellama', re.I), 'Meta'),
+    (re.compile(r'^qwen|^qwq|^wan', re.I), 'Alibaba'),
+    (re.compile(r'^phi-', re.I), 'Microsoft'),
+    (re.compile(r'^kimi', re.I), 'MoonshotAI'),
+    (re.compile(r'^hunyuan', re.I), 'Tencent'),
+    (re.compile(r'^step-', re.I), 'Stepfun'),
+    (re.compile(r'^minimax', re.I), 'Minimax'),
+    (re.compile(r'^flux', re.I), 'Black Forest Labs'),
+    (re.compile(r'^ernie', re.I), 'Baidu'),
+    (re.compile(r'^yi-|^yi-lightning', re.I), '01.AI'),
+    (re.compile(r'^internlm', re.I), 'InternLM'),
+    (re.compile(r'^command-r', re.I), 'Cohere'),
+    (re.compile(r'^nova-', re.I), 'Amazon'),
+    (re.compile(r'^dbrx', re.I), 'Databricks'),
+]
+
+def split_org_from_model(raw_name):
+    if not raw_name:
+        return {'org': '', 'model': raw_name}
+    for prefix in KNOWN_ORG_PREFIXES:
+        if raw_name.startswith(prefix) and len(raw_name) > len(prefix):
+            rest = raw_name[len(prefix):]
+            if rest and rest[0].islower():
+                return {'org': prefix, 'model': rest}
+    return {'org': '', 'model': raw_name}
+
+def detect_provider(model_name, org):
+    if org and org in ORG_TO_PROVIDER:
+        return ORG_TO_PROVIDER[org]
+    for pattern, provider in PROVIDER_PATTERNS:
+        if pattern.match(model_name):
+            return provider
+    return 'Other'
+
+def fetch_from_api():
+    try:
+        resp = requests.get(
+            'https://lmarena.ai/api/v1/leaderboard?category=text',
+            timeout=30,
+            headers=HEADERS
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if isinstance(data, list):
+                return data
+            if isinstance(data, dict) and 'data' in data:
+                return data['data']
+    except Exception as e:
+        print(f"[WARN] API 请求失败: {e}")
+    return None
+
+def parse_html(html):
+    models = []
+    row_regex = re.compile(r'<tr[^>]*>([\s\S]*?)</tr>', re.IGNORECASE)
+    cell_regex = re.compile(r'<t[dh][^>]*>([\s\S]*?)</t[dh]>', re.IGNORECASE)
+    
+    for row_match in row_regex.finditer(html):
+        cells = []
+        for cell_match in cell_regex.finditer(row_match.group(1)):
+            cell_text = re.sub(r'<[^>]+>', ' ', cell_match.group(1))
+            cell_text = re.sub(r'\s+', ' ', cell_text).strip()
+            cells.append(cell_text)
+        
+        if len(cells) >= 4:
+            try:
+                rank = int(cells[0])
+            except ValueError:
+                continue
+            
+            model_info = cells[2]
+            score_info = cells[3]
+            
+            score_match = re.search(r'(\d{3,4})', score_info)
+            if not score_match:
+                continue
+            rating = int(score_match.group(1))
+            
+            if rating <= 0:
+                continue
+            
+            result = split_org_from_model(model_info)
+            model = result['model']
+            org = result['org']
+            
+            if not org:
+                for pattern, provider in PROVIDER_PATTERNS:
+                    if pattern.search(model_info):
+                        org = provider
+                        break
+            
+            model = re.sub(r'\s*·.*$', '', model)
+            model = re.sub(r'\s+[A-Z][a-z]+$', '', model).strip()
+            
+            if org and org in ORG_TO_PROVIDER:
+                provider = ORG_TO_PROVIDER[org]
+            else:
+                provider = detect_provider(model, org)
+            
+            models.append({
+                'model': model,
+                'rating': rating,
+                'provider': provider,
+                'rank': rank,
+            })
+    
+    return models
+
+def fetch_from_html():
+    try:
+        resp = requests.get(
+            'https://lmarena.ai/leaderboard/text',
+            timeout=30,
+            headers=HEADERS
+        )
+        if resp.status_code == 200:
+            return parse_html(resp.text)
+    except Exception as e:
+        print(f"[WARN] HTML 爬取失败: {e}")
+    return None
+
+def fetch_leaderboard():
+    print("正在获取 lmarena.ai 排行榜...")
+    
+    data = fetch_from_api()
+    if data:
+        print(f"API 获取到 {len(data)} 条数据")
+        models = normalize_and_dedup(data)
+        if models:
+            return [m['model'] for m in models[:TOP_N]]
+    
+    data = fetch_from_html()
+    if data:
+        print(f"HTML 爬取到 {len(data)} 条数据")
+        return [m['model'] for m in data[:TOP_N]]
+    
+    print("[ERROR] 无法获取排行榜数据")
     return []
 
-def load_mapping() -> dict:
+def normalize_and_dedup(data):
+    if not data:
+        return []
+    
+    seen = {}
+    for item in data:
+        model = item.get('model') or item.get('name') or ''
+        rating = item.get('rating') or item.get('arena_score') or item.get('score') or item.get('elo') or 0
+        if not model or not rating:
+            continue
+        rating = int(rating)
+        if model not in seen or rating > seen[model]['rating']:
+            seen[model] = {'model': model, 'rating': rating}
+    
+    models = list(seen.values())
+    models.sort(key=lambda x: x['rating'], reverse=True)
+    
+    return [m for m in models[:TOP_N]]
+
+def load_mapping():
     with open(MAPPING_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-    # 过滤掉注释字段
     return {k: v for k, v in data.items() if not k.startswith("_")}
 
-def update_yaml(provider_models: dict[str, list[str]]):
-    """更新 librechat.yaml 中各端点的模型列表"""
+def update_yaml(provider_models):
     with open(YAML_FILE, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     endpoints = config.get("endpoints", {})
 
-    # 更新内置端点（openAI, anthropic）
     for builtin in ["openAI", "anthropic"]:
         if builtin in endpoints and builtin in provider_models:
             models = provider_models[builtin]
             if models:
                 endpoints[builtin]["models"]["default"] = models
-                # titleModel 用列表中最后一个（通常是较轻量的）
                 if len(models) > 1:
                     endpoints[builtin]["titleModel"] = models[-1]
 
-    # 更新自定义端点（Google, xAI等）
     if "custom" in endpoints:
         for endpoint in endpoints["custom"]:
             name = endpoint.get("name", "")
@@ -93,7 +262,6 @@ def update_yaml(provider_models: dict[str, list[str]]):
         yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 def main():
-    print(f"正在获取 lmarena.ai 排行榜前 {TOP_N} 名...")
     arena_models = fetch_leaderboard()
 
     if not arena_models:
@@ -106,8 +274,7 @@ def main():
 
     mapping = load_mapping()
 
-    # 按provider 分组：只保留在排行榜前 N 名中且有映射的模型
-    provider_models: dict[str, list[str]] = {}
+    provider_models = {}
     matched = 0
     for arena_name in arena_models:
         if arena_name in mapping:
@@ -117,15 +284,14 @@ def main():
             provider_models.setdefault(provider, []).append(model_id)
             matched += 1
 
-    print(f"\n匹配到 {matched} 个模型（有映射关系的）:")
+    print(f"\n匹配到 {matched} 个模型:")
     for provider, models in provider_models.items():
         print(f"  {provider}: {models}")
 
     if matched == 0:
-        print("[WARN] 没有匹配到任何模型，可能需要更新 model_mapping.json")
+        print("[WARN] 没有匹配到任何模型")
         sys.exit(0)
 
-    # 读取当前 yaml 中的模型列表，对比是否有变化
     with open(YAML_FILE, "r", encoding="utf-8") as f:
         old_content = f.read()
 
