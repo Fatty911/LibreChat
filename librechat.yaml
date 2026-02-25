@@ -19,6 +19,10 @@ endpoints:
       default:
         - "gpt-5-2-pro"
         - "gpt-5-2"
+        - "gpt-5-1-high"
+        - "gpt-5-1"
+        - "gpt-4-5-preview"
+        - "chatgpt-4o-latest"
         - "gpt-5-3-codex"
         - "gpt-5-3-garlic"
       fetch: false
