@@ -14,7 +14,7 @@ import yaml
 
 # --- 配置 ---
 TOP_N = 30
-ARENA_API_URL = "https://arena.ai/api/v1/leaderboard"
+ARENA_API_URL = "https://lmarena.ai/api/leaderboard"
 # 备用：HuggingFace 上的排行榜数据
 HF_FALLBACK_URL = "https://huggingface.co/api/spaces/lmarena-ai/chatbot-arena-leaderboard"
 MAPPING_FILE = Path(__file__).parent / "model_mapping.json"
@@ -31,7 +31,8 @@ def fetch_leaderboard() -> list[str]:
         # 根据实际返回结构调整解析逻辑
         if isinstance(data, list):
             models = [item.get("model") or item.get("name", "") for item in data[:TOP_N]]
-            return [m for m in models if m]except Exception as e:
+            return [m for m in models if m]
+    except Exception as e:
         print(f"[WARN] lmarena.ai API 请求失败: {e}，尝试备用方案...")
 
     # 备用：爬取网页
@@ -72,7 +73,8 @@ def update_yaml(provider_models: dict[str, list[str]]):
         if builtin in endpoints and builtin in provider_models:
             models = provider_models[builtin]
             if models:
-                endpoints[builtin]["models"]["default"] = models# titleModel 用列表中最后一个（通常是较轻量的）
+                endpoints[builtin]["models"]["default"] = models
+                # titleModel 用列表中最后一个（通常是较轻量的）
                 if len(models) > 1:
                     endpoints[builtin]["titleModel"] = models[-1]
 
@@ -120,7 +122,8 @@ def main():
         print(f"  {provider}: {models}")
 
     if matched == 0:
-        print("[WARN] 没有匹配到任何模型，可能需要更新 model_mapping.json")sys.exit(0)
+        print("[WARN] 没有匹配到任何模型，可能需要更新 model_mapping.json")
+        sys.exit(0)
 
     # 读取当前 yaml 中的模型列表，对比是否有变化
     with open(YAML_FILE, "r", encoding="utf-8") as f:

@@ -1,0 +1,26 @@
+{
+  "GPT-5.3 Pro": {
+    "provider": "openAI",
+    "model_id": "gpt-5-3-codex"
+  },
+  "GPT-5.3": {
+    "provider": "openAI",
+    "model_id": "gpt-5-3-garlic"
+  },
+  "Claude Opus 4.6": {
+    "provider": "anthropic",
+    "model_id": "claude-opus-4-6"
+  },
+  "Claude 4.6 Opus": {
+    "provider": "anthropic",
+    "model_id": "claude-opus-4-6"
+  },
+  "Claude 4.6 Thinking": {
+    "provider": "anthropic",
+    "model_id": "claude-opus-4-6-thinking"
+  },
+  "Claude Opus 4.6 Thinking": {
+    "provider": "anthropic",
+    "model_id": "claude-opus-4-6-thinking"
+  }
+}
