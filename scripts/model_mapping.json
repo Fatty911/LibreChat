@@ -21,7 +21,7 @@
   },
   "gpt-5.2-high": {
     "provider": "openAI",
-    "model_id": "gpt-5-2"
+    "model_id": "gpt-5-2-pro"
   },
   "gpt-5.2": {
     "provider": "openAI",
@@ -37,6 +37,6 @@
   },
   "chatgpt-4o-latest-20250326": {
     "provider": "openAI",
-    "model_id": "gpt-5-2"
+    "model_id": "chatgpt-4o-latest"
   }
 }
