@@ -48,7 +48,8 @@ endpoints:
       titleModel: "gemini-3-flash"
       summarize: true
       dropParams:
-        - "stop"- name: "xAI"
+        - "stop"
+    - name: "xAI"
       apiKey: "${XAI_API_KEY}"
       baseURL: "${XAI_BASE_URL}"
       models:
@@ -58,3 +59,14 @@ endpoints:
         fetch: false
       titleModel: "grok-4-1-fast-non-reasoning"
       summarize: true
+
+    - name: "OpenCode Zen"          # 显示名称，随便起
+      apiKey: "${OPENCODE_ZEN_API_KEY}"
+      baseURL: "https://opencode.ai/zen/v1"
+      models:
+        default: ["glm-5-free", "minimax-m2.5-free"]  # 至少这两个
+        fetch: true               # 推荐开启，自动拉取 Zen 全部可用模型
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: true
+      modelDisplayLabel: "OpenCode Zen"
