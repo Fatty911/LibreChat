@@ -40,4 +40,4 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git merge upstream/main --no-edit
-          git push
+          git push https://${{ secrets.Actions_Trigger }}@github.com/Fatty911/LibreChat.git
