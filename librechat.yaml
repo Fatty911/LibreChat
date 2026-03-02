@@ -32,10 +32,10 @@ endpoints:
   custom:
     - name: "GLM"
       apiKey: "${MODAL_API_KEY}"
-      baseURL: "https://modal-glm5-fp8.modal.run/v1"
+      baseURL: "https://api.us-west-2.modal.direct/v1"
       models:
         default:
-          - "zai-org/glm-5-fp8"
+          - "zai-org/GLM-5-FP8"
         fetch: false
       titleConvo: true
       titleModel: "current_model"
@@ -59,9 +59,12 @@ endpoints:
       baseURL: "https://openrouter.ai/api/v1"
       models:
         default:
-          - "meta-llama/llama-3.3-70b-instruct:free"
-          - "google/gemma-3-27b-it:free"
-          - "qwen/qwen3-coder:free"
+          - "nvidia/nemotron-3-nano-30b-a3b:free"
+          - "tngtech/deepseek-r1t2-chimera"
+          - "deepseek/deepseek-r1-distill-qwen-32b"
+          - "openai/gpt-oss-120b:free"
+          - "meta-llama/llama-4-scout"
+          - "qwen/qwen3-coder-30b-a3b-instruct"
         fetch: false
       titleConvo: true
       titleModel: "current_model"
