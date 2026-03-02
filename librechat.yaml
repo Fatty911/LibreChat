@@ -1,7 +1,6 @@
 version: 1.2.1
 cache: true
 
-# 文件上传配置
 fileConfig:
   endpoints:
     default:
@@ -9,65 +8,147 @@ fileConfig:
       fileSizeLimit: 25
       serverFileSizeLimit: 100
 
-# 接口配置
 endpoints:
-  # --- OpenAI（内置端点，自动读取 OPENAI_REVERSE_PROXY） ---
   openAI:
     titleModel: "gpt-5-2"
     summarize: true
     models:
       default:
-        - "gpt-5-2-pro"
         - "gpt-5-2"
+        - "gpt-5-2-pro"
         - "gpt-5-3-codex"
-        - "gpt-5-3-garlic"
       fetch: false
-#fetch: false 表示不从 API 动态拉取模型列表，只用你手动指定的。这样你能精确控制显示哪些模型。
 
-  # --- Anthropic（内置端点，自动读取 ANTHROPIC_REVERSE_PROXY） ---
   anthropic:
     titleModel: "claude-opus-4-6"
     summarize: true
     models:
       default:
-        - "claude-opus-4-6-thinking"
         - "claude-opus-4-6"
+        - "claude-opus-4-6-thinking"
+        - "claude-sonnet-4-6"
       fetch: false
 
-  # --- Google Gemini（自定义端点，baseURL 从环境变量读取） ---
-  # --- xAI Grok（自定义端点） ---
   custom:
-    - name: "Google"
-      apiKey: "${GOOGLE_KEY}"
-      baseURL: "${GOOGLE_BASE_URL}"
+    - name: "GLM"
+      apiKey: "${MODAL_API_KEY}"
+      baseURL: "https://modal-glm5-fp8.modal.run/v1"
       models:
         default:
-          - "gemini-3-pro"
-          - "gemini-3-flash"
-          - "gemini-3-pro-preview"
+          - "zai-org/glm-5-fp8"
         fetch: false
-      titleModel: "gemini-3-flash"
+      titleConvo: true
+      titleModel: "current_model"
       summarize: true
-      dropParams:
-        - "stop"
-    - name: "xAI"
+      modelDisplayLabel: "GLM"
+
+    - name: "Minimax"
+      apiKey: "${OPENCODE_ZEN_API_KEY}"
+      baseURL: "https://opencode.ai/zen/v1"
+      models:
+        default:
+          - "minimax-m2.5-free"
+        fetch: true
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: true
+      modelDisplayLabel: "Minimax"
+
+    - name: "OpenRouter"
+      apiKey: "${OPENROUTER_API_KEY}"
+      baseURL: "https://openrouter.ai/api/v1"
+      models:
+        default:
+          - "meta-llama/llama-3.3-70b-instruct:free"
+          - "google/gemma-3-27b-it:free"
+          - "qwen/qwen3-coder:free"
+        fetch: false
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: true
+      modelDisplayLabel: "OpenRouter"
+
+    - name: "Groq"
+      apiKey: "${GROQ_API_KEY}"
+      baseURL: "https://api.groq.com/openai/v1"
+      models:
+        default:
+          - "llama-3.3-70b-versatile"
+          - "llama-3.3-8b-instant"
+          - "gemma2-9b-it"
+        fetch: false
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: true
+      modelDisplayLabel: "Groq"
+
+    - name: "DeepSeek"
+      apiKey: "${DEEPSEEK_API_KEY}"
+      baseURL: "https://api.deepseek.com"
+      models:
+        default:
+          - "deepseek-chat"
+          - "deepseek-reasoner"
+          - "deepseek-r1"
+        fetch: false
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: true
+      modelDisplayLabel: "DeepSeek"
+
+    - name: "Grok"
       apiKey: "${XAI_API_KEY}"
-      baseURL: "${XAI_BASE_URL}"
+      baseURL: "https://api.x.ai/v1"
       models:
         default:
           - "grok-4-1-fast-reasoning"
           - "grok-4-1-fast-non-reasoning"
         fetch: false
-      titleModel: "grok-4-1-fast-non-reasoning"
-      summarize: true
-
-    - name: "OpenCode Zen"          # 显示名称，随便起
-      apiKey: "${OPENCODE_ZEN_API_KEY}"
-      baseURL: "https://opencode.ai/zen/v1"
-      models:
-        default: ["glm-5-free", "minimax-m2.5-free"]  # 至少这两个
-        fetch: true               # 推荐开启，自动拉取 Zen 全部可用模型
       titleConvo: true
       titleModel: "current_model"
       summarize: true
-      modelDisplayLabel: "OpenCode Zen"
+      modelDisplayLabel: "Grok"
+
+    - name: "Grok Pro"
+      apiKey: "${BLTCY_GROK_KEY}"
+      baseURL: "https://api.bltcy.ai/v1"
+      models:
+        default:
+          - "grok-4.1"
+          - "grok-4.1-thinking"
+        fetch: false
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: true
+      modelDisplayLabel: "Grok Pro"
+
+    - name: "Gemini"
+      apiKey: "${GOOGLE_KEY}"
+      baseURL: "https://generativelanguage.googleapis.com/v1beta"
+      models:
+        default:
+          - "gemini-3.0-flash"
+          - "gemini-2.5-pro"
+        fetch: false
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: true
+      modelDisplayLabel: "Gemini"
+      dropParams:
+        - "stop"
+
+    - name: "Gemini Pro"
+      apiKey: "${BLTCY_GEMINI_KEY}"
+      baseURL: "https://api.bltcy.ai/v1"
+      models:
+        default:
+          - "gemini-3.1-pro-preview"
+          - "gemini-3.1-pro-preview-customtools"
+          - "gemini-3.0-pro"
+        fetch: false
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: true
+      modelDisplayLabel: "Gemini Pro"
+      dropParams:
+        - "stop"
