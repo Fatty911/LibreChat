@@ -2,7 +2,7 @@ const path = require('path');
 const axios = require('axios');
 const yaml = require('js-yaml');
 const keyBy = require('lodash/keyBy');
-const { loadYaml } = require('@librechat/api');
+const { loadYaml, validateEndpoints } = require('@librechat/api');
 const { logger } = require('@librechat/data-schemas');
 const {
   configSchema,
@@ -125,6 +125,38 @@ https://www.librechat.ai/docs/configuration/stt_tts`);
 
   if (result.data.modelSpecs) {
     customConfig.modelSpecs = result.data.modelSpecs;
+  }
+
+  // Validate custom endpoints if VALIDATE_ENDPOINTS is enabled
+  if (process.env.VALIDATE_ENDPOINTS === 'true' && customConfig.endpoints?.custom) {
+    logger.info('Validating custom endpoints...');
+    const validationTimeout = parseInt(process.env.ENDPOINT_VALIDATION_TIMEOUT || '5000', 10);
+    const originalCount = customConfig.endpoints.custom.length;
+    
+    try {
+      const validationResults = await validateEndpoints(
+        customConfig.endpoints.custom,
+        validationTimeout,
+      );
+
+      // Filter out invalid endpoints
+      const validEndpoints = customConfig.endpoints.custom.filter((endpoint) => {
+        const result = validationResults.get(endpoint.name);
+        if (!result || !result.isValid) {
+          logger.warn(
+            `Endpoint "${endpoint.name}" failed validation: ${result?.error || 'Unknown error'}. Removing from config.`,
+          );
+          return false;
+        }
+        return true;
+      });
+
+      customConfig.endpoints.custom = validEndpoints;
+      logger.info(`Validated ${validEndpoints.length}/${originalCount} custom endpoints`);
+    } catch (error) {
+      logger.error('Error during endpoint validation:', error);
+      // Continue without validation on error
+    }
   }
 
   return customConfig;
