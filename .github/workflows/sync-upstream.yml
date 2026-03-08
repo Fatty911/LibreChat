@@ -36,10 +36,27 @@ jobs:
             echo "need_sync=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Setup Node.js
+        if: steps.check.outputs.need_sync == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Merge upstream
         if: steps.check.outputs.need_sync == 'true'
+        env:
+          BLTCY_PROXY_URL: ${{ secrets.BLTCY_PROXY_URL }}
+          BLTCY_API_KEY: ${{ secrets.BLTCY_API_KEY }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git merge upstream/main --no-edit
+          
+          if git merge upstream/main --no-edit; then
+            echo "Merge successful without conflicts"
+          else
+            echo "Conflicts detected, resolving with AI..."
+            node .github/scripts/resolve-conflicts.js
+            git commit -m "chore: auto-resolve merge conflicts with AI"
+          fi
+          
           git push origin HEAD:main
