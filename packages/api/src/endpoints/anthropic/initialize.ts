@@ -20,7 +20,8 @@ export async function initializeAnthropic({
 }: BaseInitializeParams): Promise<InitializeResultBase> {
   void endpoint;
   const appConfig = req.config;
-  const { ANTHROPIC_API_KEY, ANTHROPIC_REVERSE_PROXY, PROXY } = process.env;
+  const { ANTHROPIC_API_KEY, ANTHROPIC_REVERSE_PROXY, ANTHROPIC_PROXY_URL, PROXY } = process.env;
+  const reverseProxyUrl = ANTHROPIC_PROXY_URL || ANTHROPIC_REVERSE_PROXY;
   const { key: expiresAt } = req.body;
 
   let credentials: Record<string, unknown> = {};
@@ -66,7 +67,7 @@ export async function initializeAnthropic({
 
   const clientOptions: AnthropicConfigOptions = {
     proxy: PROXY ?? undefined,
-    reverseProxyUrl: ANTHROPIC_REVERSE_PROXY ?? undefined,
+    reverseProxyUrl: reverseProxyUrl ?? undefined,
     modelOptions: {
       ...(model_parameters ?? {}),
       user: req.user?.id,

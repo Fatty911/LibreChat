@@ -25,7 +25,8 @@ export async function initializeGoogle({
 }: BaseInitializeParams): Promise<InitializeResultBase> {
   void endpoint;
   const appConfig = req.config;
-  const { GOOGLE_KEY, GOOGLE_REVERSE_PROXY, GOOGLE_AUTH_HEADER, PROXY } = process.env;
+  const { GOOGLE_KEY, GOOGLE_REVERSE_PROXY, GOOGLE_PROXY_URL, GOOGLE_AUTH_HEADER, PROXY } = process.env;
+  const reverseProxyUrl = GOOGLE_PROXY_URL || GOOGLE_REVERSE_PROXY;
   const isUserProvided = GOOGLE_KEY === 'user_provided';
   const { key: expiresAt } = req.body;
 
@@ -80,7 +81,7 @@ export async function initializeGoogle({
   }
 
   clientOptions = {
-    reverseProxyUrl: GOOGLE_REVERSE_PROXY ?? undefined,
+    reverseProxyUrl: reverseProxyUrl ?? undefined,
     authHeader: isEnabled(GOOGLE_AUTH_HEADER) ?? undefined,
     proxy: PROXY ?? undefined,
     modelOptions: model_parameters ?? {},

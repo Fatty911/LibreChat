@@ -62,9 +62,12 @@ export async function initializeBedrock({
     BEDROCK_AWS_ACCESS_KEY_ID,
     BEDROCK_AWS_SESSION_TOKEN,
     BEDROCK_REVERSE_PROXY,
+    BEDROCK_PROXY_URL,
     BEDROCK_AWS_DEFAULT_REGION,
     PROXY,
   } = process.env;
+
+  const reverseProxyUrl = BEDROCK_PROXY_URL || BEDROCK_REVERSE_PROXY;
 
   const { key: expiresAt } = req.body;
   const isUserProvided = BEDROCK_AWS_SECRET_ACCESS_KEY === AuthType.USER_PROVIDED;
@@ -154,8 +157,8 @@ export async function initializeBedrock({
         httpAgent: proxyAgent,
         httpsAgent: proxyAgent,
       }),
-      ...(BEDROCK_REVERSE_PROXY && {
-        endpoint: `https://${BEDROCK_REVERSE_PROXY}`,
+      ...(reverseProxyUrl && {
+        endpoint: `https://${reverseProxyUrl}`,
       }),
     });
 
@@ -167,8 +170,8 @@ export async function initializeBedrock({
       llmConfig.credentials = credentials;
     }
 
-    if (BEDROCK_REVERSE_PROXY) {
-      llmConfig.endpointHost = BEDROCK_REVERSE_PROXY;
+    if (reverseProxyUrl) {
+      llmConfig.endpointHost = reverseProxyUrl;
     }
   }
 

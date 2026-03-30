@@ -24,7 +24,7 @@ export async function initializeOpenAI({
   db,
 }: BaseInitializeParams): Promise<InitializeResultBase> {
   const appConfig = req.config;
-  const { PROXY, OPENAI_API_KEY, AZURE_API_KEY, OPENAI_REVERSE_PROXY, AZURE_OPENAI_BASEURL } =
+  const { PROXY, OPENAI_API_KEY, AZURE_API_KEY, OPENAI_REVERSE_PROXY, AZURE_OPENAI_BASEURL, OPENAI_PROXY_URL } =
     process.env;
 
   const { key: expiresAt } = req.body;
@@ -36,7 +36,7 @@ export async function initializeOpenAI({
   };
 
   const baseURLOptions = {
-    [EModelEndpoint.openAI]: OPENAI_REVERSE_PROXY,
+    [EModelEndpoint.openAI]: OPENAI_PROXY_URL || OPENAI_REVERSE_PROXY,
     [EModelEndpoint.azureOpenAI]: AZURE_OPENAI_BASEURL,
   };
 

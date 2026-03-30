@@ -2073,3 +2073,82 @@ export function getDefaultParamsEndpoint(
   }
   return endpointsConfig[endpoint]?.customParams?.defaultParamsEndpoint;
 }
+
+/**
+ * Splits a string by commas and trims each resulting value.
+ * @param input - The input string to split.
+ * @returns An array of trimmed values.
+ */
+function splitAndTrim(input: string | null | undefined): string[] {
+  if (!input || typeof input !== 'string') {
+    return [];
+  }
+  return input
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Parses Lobe-Chat style model list from environment variable.
+ * Format supports:
+ * - `-all` - Start with empty list (use with + to add specific models)
+ * - `+model` - Add a model to the list
+ * - `-model` - Remove a model from the list
+ * - `model` - Plain model name replaces entire list (backward compatibility)
+ *
+ * Examples:
+ * - `-all,+gpt-4o,+gpt-4o-mini` - Only show gpt-4o and gpt-4o-mini
+ * - `+gpt-4,-gpt-3.5-turbo` - Add gpt-4, remove gpt-3.5-turbo from defaults
+ * - `gpt-4,gpt-3.5-turbo` - Replace with fixed list (backward compatible)
+ *
+ * @param modelList - The model list string from env var
+ * @param defaultModels - The default model list to start from
+ * @returns Processed model array
+ */
+export function parseModelList(modelList: string | null | undefined, defaultModels: string[]): string[] {
+  if (!modelList || !modelList.trim()) {
+    return defaultModels;
+  }
+
+  const items = splitAndTrim(modelList);
+  let models: string[] | undefined;
+
+  for (const item of items) {
+    if (item === '-all') {
+      models = [];
+    } else if (item.startsWith('+')) {
+      const modelName = item.slice(1);
+      if (!modelName) continue;
+      if (!models) {
+        models = [...defaultModels];
+      }
+      if (!models.includes(modelName)) {
+        models.push(modelName);
+      }
+    } else if (item.startsWith('-')) {
+      const modelName = item.slice(1);
+      if (!modelName) continue;
+      if (!models) {
+        models = [...defaultModels];
+      }
+      models = models.filter((m) => m !== modelName);
+    } else {
+      // Plain model name - replace entire list (backward compatibility)
+      if (!models) {
+        models = [...defaultModels];
+      }
+      // If this is the first item and no -all/+ /-  was seen yet,
+      // treat plain names as the new list (old behavior)
+      if (items.length === 1 || (!items.slice(0, items.indexOf(item)).some(i => i.startsWith('+') || i.startsWith('-')) && !items.includes('-all'))) {
+        return [item];
+      }
+      // Otherwise add to list
+      if (!models.includes(item)) {
+        models.push(item);
+      }
+    }
+  }
+
+  return models ?? defaultModels;
+}

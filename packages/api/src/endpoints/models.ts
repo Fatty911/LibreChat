@@ -8,6 +8,7 @@ import {
   KnownEndpoints,
   EModelEndpoint,
   defaultModels,
+  parseModelList,
 } from 'librechat-data-provider';
 import type { IUser } from '@librechat/data-schemas';
 import {
@@ -298,12 +299,20 @@ export async function getOpenAIModels(opts: GetOpenAIModelsOptions = {}): Promis
   }
 
   let key: string;
+  let modelListKey: string;
   if (opts.assistants) {
     key = 'ASSISTANTS_MODELS';
+    modelListKey = 'ASSISTANTS_MODEL_LIST';
   } else if (opts.azure) {
     key = 'AZURE_OPENAI_MODELS';
+    modelListKey = 'AZURE_OPENAI_MODEL_LIST';
   } else {
     key = 'OPENAI_MODELS';
+    modelListKey = 'OPENAI_MODEL_LIST';
+  }
+
+  if (process.env[modelListKey]) {
+    return parseModelList(process.env[modelListKey], models);
   }
 
   if (process.env[key]) {
@@ -367,11 +376,15 @@ export async function fetchAnthropicModels(
 export async function getAnthropicModels(
   opts: { user?: string; vertexModels?: string[] } = {},
 ): Promise<string[]> {
-  const models = defaultModels[EModelEndpoint.anthropic];
+  let models = defaultModels[EModelEndpoint.anthropic];
 
   // Vertex AI models from YAML config take priority
   if (opts.vertexModels && opts.vertexModels.length > 0) {
     return opts.vertexModels;
+  }
+
+  if (process.env.ANTHROPIC_MODEL_LIST) {
+    return parseModelList(process.env.ANTHROPIC_MODEL_LIST, models);
   }
 
   if (process.env.ANTHROPIC_MODELS) {
@@ -396,8 +409,11 @@ export async function getAnthropicModels(
  */
 export function getGoogleModels(): string[] {
   let models = defaultModels[EModelEndpoint.google];
+  if (process.env.GOOGLE_MODEL_LIST) {
+    return parseModelList(process.env.GOOGLE_MODEL_LIST, models);
+  }
   if (process.env.GOOGLE_MODELS) {
-    models = splitAndTrim(process.env.GOOGLE_MODELS);
+    return splitAndTrim(process.env.GOOGLE_MODELS);
   }
   return models;
 }
@@ -408,8 +424,11 @@ export function getGoogleModels(): string[] {
  */
 export function getBedrockModels(): string[] {
   let models = defaultModels[EModelEndpoint.bedrock];
+  if (process.env.BEDROCK_MODEL_LIST) {
+    return parseModelList(process.env.BEDROCK_MODEL_LIST, models);
+  }
   if (process.env.BEDROCK_AWS_MODELS) {
-    models = splitAndTrim(process.env.BEDROCK_AWS_MODELS);
+    return splitAndTrim(process.env.BEDROCK_AWS_MODELS);
   }
   return models;
 }
