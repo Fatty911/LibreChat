@@ -2,9 +2,8 @@ name: Auto Sync Upstream and Resolve Conflicts
 
 on:
   schedule:
-    # 每天 00:00 和 18:00 执行（标准Cron无法完美实现每18小时一次，故以此代替近似每18小时）
     - cron: '0 0,18 * * *'
-  workflow_dispatch: # 允许手动触发以进行测试
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -38,7 +37,6 @@ jobs:
       - name: Attempt Merge
         id: merge
         run: |
-          # 尝试合并 upstream/main 到当前分支
           if git merge upstream/main --no-edit; then
             echo "Merge successful without conflicts."
             echo "has_conflicts=false" >> $GITHUB_OUTPUT
@@ -50,18 +48,16 @@ jobs:
       - name: Resolve conflicts using LLM
         if: steps.merge.outputs.has_conflicts == 'true'
         env:
-          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          BLTCY_PROXY_URL: ${{ secrets.BLTCY_PROXY_URL }}
+          BLTCY_API_KEY: ${{ secrets.BLTCY_API_KEY }}
         run: node .github/scripts/resolve-conflicts.js
 
       - name: Commit resolved conflicts
         if: steps.merge.outputs.has_conflicts == 'true'
         run: |
-          # Stage previously conflicted files that we resolved
           git diff --name-only --diff-filter=U | xargs -r git add
-          # Commit the merge
-          git commit -m "chore: auto-resolve merge conflicts with upstream using LLM"
+          # the script already does `git add`, but doing it again here is safe
+          git commit -m "chore: auto-resolve merge conflicts with upstream using BLTCY API"
       
       - name: Push changes
         run: git push origin HEAD:main
