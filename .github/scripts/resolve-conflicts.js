@@ -4,15 +4,18 @@ const fs = require('fs');
 async function resolveConflict(fileContent, filePath) {
   let apiKey = process.env.OPENROUTER_API_KEY;
   let apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-  let model = 'anthropic/claude-3.5-sonnet';
+  
+  // 更新为 2025/2026 年代更先进的模型
+  let model = 'anthropic/claude-3.7-sonnet';
 
   if (process.env.DEEPSEEK_API_KEY && !process.env.OPENROUTER_API_KEY) {
     apiKey = process.env.DEEPSEEK_API_KEY;
     apiUrl = 'https://api.deepseek.com/v1/chat/completions';
-    model = 'deepseek-coder';
+    // deepseek-coder 已经过时，更新为 deepseek-chat (DeepSeek-V3) 或 deepseek-reasoner (DeepSeek-R1)
+    model = 'deepseek-chat'; 
   } else if (process.env.OPENCODE_ZEN_API_KEY && !process.env.OPENROUTER_API_KEY && !process.env.DEEPSEEK_API_KEY) {
     apiKey = process.env.OPENCODE_ZEN_API_KEY;
-    apiUrl = 'https://api.zen.my/chat/completions'; // the original URL used in their script
+    apiUrl = 'https://api.zen.my/chat/completions'; 
     model = 'opencode/mimo-v2-pro-free';
   }
 
