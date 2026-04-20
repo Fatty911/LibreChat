@@ -1,0 +1,67 @@
+name: Auto Sync Upstream and Resolve Conflicts
+
+on:
+  schedule:
+    # 每天 00:00 和 18:00 执行（标准Cron无法完美实现每18小时一次，故以此代替近似每18小时）
+    - cron: '0 0,18 * * *'
+  workflow_dispatch: # 允许手动触发以进行测试
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ACTION_WRITE || github.token }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/danny-avila/LibreChat.git || echo "Remote upstream already exists."
+          git fetch upstream main
+
+      - name: Attempt Merge
+        id: merge
+        run: |
+          # 尝试合并 upstream/main 到当前分支
+          if git merge upstream/main --no-edit; then
+            echo "Merge successful without conflicts."
+            echo "has_conflicts=false" >> $GITHUB_OUTPUT
+          else
+            echo "Conflicts detected!"
+            echo "has_conflicts=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Resolve conflicts using LLM
+        if: steps.merge.outputs.has_conflicts == 'true'
+        env:
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: node .github/scripts/resolve-conflicts.js
+
+      - name: Commit resolved conflicts
+        if: steps.merge.outputs.has_conflicts == 'true'
+        run: |
+          # Stage previously conflicted files that we resolved
+          git diff --name-only --diff-filter=U | xargs -r git add
+          # Commit the merge
+          git commit -m "chore: auto-resolve merge conflicts with upstream using LLM"
+      
+      - name: Push changes
+        run: git push origin HEAD:main
