@@ -45,19 +45,26 @@ jobs:
             echo "has_conflicts=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Resolve conflicts using LLM
+      - name: Resolve conflicts using AI (Multi-Provider Fallback)
         if: steps.merge.outputs.has_conflicts == 'true'
         env:
           BLTCY_PROXY_URL: ${{ secrets.BLTCY_PROXY_URL }}
           BLTCY_API_KEY: ${{ secrets.BLTCY_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          MODAL_API_KEY: ${{ secrets.MODAL_API_KEY }}
+          ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
         run: node .github/scripts/resolve-conflicts.js
 
       - name: Commit resolved conflicts
         if: steps.merge.outputs.has_conflicts == 'true'
         run: |
-          git diff --name-only --diff-filter=U | xargs -r git add
-          # the script already does `git add`, but doing it again here is safe
-          git commit -m "chore: auto-resolve merge conflicts with upstream using BLTCY API"
+          # If AI failed to resolve some conflicts, this might fail, which is expected
+          # to prevent committing broken files with markers.
+          git commit -m "chore: auto-resolve merge conflicts with upstream using multi-provider AI"
       
       - name: Push changes
         run: git push origin HEAD:main
