@@ -1,17 +1,59 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 
+async function getBestModel(apiUrl, apiKey) {
+  try {
+    const modelsUrl = apiUrl.replace('/chat/completions', '/models');
+    console.log(`Fetching available models from ${modelsUrl}...`);
+    
+    const response = await fetch(modelsUrl, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    if (!data.data || !Array.isArray(data.data)) return null;
+    
+    // Sort models based on capabilities, prioritizing the most capable ones
+    const models = data.data.map(m => m.id);
+    
+    // Fallback logic for OpenRouter
+    if (apiUrl.includes('openrouter')) {
+      if (models.includes('anthropic/claude-3.7-sonnet')) return 'anthropic/claude-3.7-sonnet';
+      if (models.includes('anthropic/claude-3.5-sonnet')) return 'anthropic/claude-3.5-sonnet';
+      // Find any Claude 3 model
+      const anyClaude = models.find(m => m.includes('claude-3'));
+      if (anyClaude) return anyClaude;
+      // Fallback to GPT-4 class
+      if (models.includes('openai/gpt-4o')) return 'openai/gpt-4o';
+      if (models.includes('openai/gpt-4-turbo')) return 'openai/gpt-4-turbo';
+    } 
+    // Fallback logic for DeepSeek
+    else if (apiUrl.includes('deepseek')) {
+      if (models.includes('deepseek-chat')) return 'deepseek-chat';
+      if (models.includes('deepseek-coder')) return 'deepseek-coder';
+    }
+    
+    // If we can't find our preferred ones, just return the first available one
+    // or return null to fall back to the hardcoded defaults
+    return models[0] || null;
+  } catch (error) {
+    console.error('Error fetching models dynamically:', error.message);
+    return null;
+  }
+}
+
 async function resolveConflict(fileContent, filePath) {
   let apiKey = process.env.OPENROUTER_API_KEY;
   let apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-  
-  // 更新为 2025/2026 年代更先进的模型
   let model = 'anthropic/claude-3.7-sonnet';
 
   if (process.env.DEEPSEEK_API_KEY && !process.env.OPENROUTER_API_KEY) {
     apiKey = process.env.DEEPSEEK_API_KEY;
     apiUrl = 'https://api.deepseek.com/v1/chat/completions';
-    // deepseek-coder 已经过时，更新为 deepseek-chat (DeepSeek-V3) 或 deepseek-reasoner (DeepSeek-R1)
     model = 'deepseek-chat'; 
   } else if (process.env.OPENCODE_ZEN_API_KEY && !process.env.OPENROUTER_API_KEY && !process.env.DEEPSEEK_API_KEY) {
     apiKey = process.env.OPENCODE_ZEN_API_KEY;
@@ -21,6 +63,16 @@ async function resolveConflict(fileContent, filePath) {
 
   if (!apiKey) {
     throw new Error('No API key found! Please set OPENROUTER_API_KEY, DEEPSEEK_API_KEY, or OPENCODE_ZEN_API_KEY.');
+  }
+
+  // Attempt to dynamically fetch the best available model
+  // Only attempt for OpenRouter and DeepSeek standard APIs
+  if (apiUrl.includes('openrouter') || apiUrl.includes('deepseek')) {
+    const dynamicModel = await getBestModel(apiUrl, apiKey);
+    if (dynamicModel) {
+      console.log(`Dynamically selected model: ${dynamicModel}`);
+      model = dynamicModel;
+    }
   }
 
   const prompt = `You are an expert developer. The following file has Git merge conflicts marked with <<<<<<<, =======, and >>>>>>>. 
