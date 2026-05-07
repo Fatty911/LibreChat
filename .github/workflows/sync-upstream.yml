@@ -2,16 +2,18 @@ name: Auto Sync Upstream and Resolve Conflicts
 
 on:
   schedule:
-    - cron: '0 0,18 * * *'
+    - cron: '0 */10 * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
+  issues: write
   actions: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,7 +36,7 @@ jobs:
           git remote add upstream https://github.com/danny-avila/LibreChat.git || echo "Remote upstream already exists."
           git fetch upstream main
 
-      - name: Attempt Merge
+      - name: Track 1 - Attempt direct merge
         id: merge
         run: |
           if git merge upstream/main --no-edit; then
@@ -45,11 +47,11 @@ jobs:
             echo "has_conflicts=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Resolve conflicts using AI (Multi-Provider Fallback)
+      - name: Track 2 - Resolve conflicts using AI (Multi-Provider Fallback)
+        id: ai_resolve
         if: steps.merge.outputs.has_conflicts == 'true'
+        continue-on-error: true
         env:
-          BLTCY_PROXY_URL: ${{ secrets.BLTCY_PROXY_URL }}
-          BLTCY_API_KEY: ${{ secrets.BLTCY_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
@@ -57,14 +59,41 @@ jobs:
           MODAL_API_KEY: ${{ secrets.MODAL_API_KEY }}
           ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
           OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          QIANFAN_CODING_API_KEY: ${{ secrets.QIANFAN_CODING_API_KEY }}
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+          SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+          MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
         run: node .github/scripts/resolve-conflicts.js
 
-      - name: Commit resolved conflicts
-        if: steps.merge.outputs.has_conflicts == 'true'
+      - name: Track 2 - Commit resolved conflicts
+        id: commit_ai
+        if: steps.merge.outputs.has_conflicts == 'true' && steps.ai_resolve.outcome == 'success'
         run: |
-          # If AI failed to resolve some conflicts, this might fail, which is expected
-          # to prevent committing broken files with markers.
-          git commit -m "chore: auto-resolve merge conflicts with upstream using multi-provider AI"
-      
+          git commit -m "chore: auto-resolve merge conflicts with upstream using multi-provider AI" || echo "Nothing to commit"
+
+      - name: Track 3 - Abort merge and reset on AI failure
+        if: steps.merge.outputs.has_conflicts == 'true' && steps.ai_resolve.outcome == 'failure'
+        run: |
+          echo "AI conflict resolution failed. Aborting merge to keep repo clean."
+          git merge --abort 2>/dev/null || true
+          git reset --hard HEAD 2>/dev/null || true
+          echo "ai_failed=true" >> $GITHUB_OUTPUT
+
       - name: Push changes
-        run: git push origin HEAD:main
+        id: push
+        if: steps.merge.outputs.has_conflicts == 'false' || (steps.ai_resolve.outcome == 'success' && steps.commit_ai.outcome == 'success')
+        run: |
+          if git diff --quiet HEAD origin/main; then
+            echo "No changes to push."
+          else
+            git push origin HEAD:main
+          fi
+
+      - name: Create issue on sync failure
+        if: failure() || (steps.merge.outputs.has_conflicts == 'true' && steps.ai_resolve.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ secrets.ACTION_WRITE || github.token }}
+          REPO: ${{ github.repository }}
+        run: node .github/scripts/create-sync-issue.js
