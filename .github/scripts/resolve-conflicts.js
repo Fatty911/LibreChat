@@ -50,10 +50,14 @@ const PROVIDER_DEFAULT_MODELS = {
 
 class ProviderManager {
     constructor() {
-        this.providers = this._discoverProviders();
+        this.providers = [];
     }
 
-    _discoverProviders() {
+    async init() {
+        this.providers = await this._discoverProviders();
+    }
+
+    async _discoverProviders() {
         const providers = [];
         const env = process.env;
 
@@ -75,7 +79,7 @@ class ProviderManager {
                 name: prefix,
                 apiKey: value.trim(),
                 baseUrl,
-                models: this._getModelsForProvider(prefix, env)
+                models: await this._getModelsForProvider(prefix, env)
             });
         }
 
@@ -97,12 +101,89 @@ class ProviderManager {
         return providers;
     }
 
-    _getModelsForProvider(prefix, env) {
+    async _getModelsForProvider(prefix, env) {
         const modelListStr = env[`${prefix}_MODEL_LIST`];
         if (modelListStr) {
             return modelListStr.split(',').map(m => m.trim()).filter(Boolean);
         }
+
+        if (prefix === 'OPENROUTER') {
+            const freeModels = await this._fetchOpenRouterFreeModels();
+            if (freeModels.length > 0) return freeModels;
+        }
+        if (prefix === 'OPENCODE_ZEN') {
+            const freeModels = await this._fetchOpenCodeZenFreeModels(env);
+            if (freeModels.length > 0) return freeModels;
+        }
+        if (prefix === 'NVIDIA_NIM') {
+            const freeModels = await this._fetchNvidiaNimFreeModels(env);
+            if (freeModels.length > 0) return freeModels;
+        }
+
         return PROVIDER_DEFAULT_MODELS[prefix] || [];
+    }
+
+    async _fetchOpenRouterFreeModels() {
+        try {
+            console.log('Fetching OpenRouter free models...');
+            const r = await fetch('https://openrouter.ai/api/v1/models', {
+                signal: AbortSignal.timeout(15000)
+            });
+            if (!r.ok) return [];
+            const data = await r.json();
+            const freeModels = data.data
+                .filter(m => m.id && m.id.includes(':free'))
+                .map(m => m.id);
+            console.log(`Found ${freeModels.length} OpenRouter free models:`, freeModels.slice(0, 10));
+            return freeModels;
+        } catch (e) {
+            console.log(`Failed to fetch OpenRouter models: ${e.message}`);
+            return [];
+        }
+    }
+
+    async _fetchOpenCodeZenFreeModels(env) {
+        try {
+            const apiKey = env.OPENCODE_ZEN_API_KEY;
+            if (!apiKey) return [];
+            console.log('Fetching OpenCode-Zen models...');
+            const r = await fetch('https://opencode.ai/zen/v1/models', {
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+                signal: AbortSignal.timeout(15000)
+            });
+            if (!r.ok) return [];
+            const data = await r.json();
+            const freeModels = data.data
+                .filter(m => m.id && (m.id.includes('free') || m.id.includes('mimo') || m.id.includes('minimax')))
+                .map(m => m.id);
+            console.log(`Found ${freeModels.length} OpenCode-Zen models:`, freeModels);
+            return freeModels;
+        } catch (e) {
+            console.log(`Failed to fetch OpenCode-Zen models: ${e.message}`);
+            return [];
+        }
+    }
+
+    async _fetchNvidiaNimFreeModels(env) {
+        try {
+            const apiKey = env.NVIDIA_NIM_API_KEY;
+            if (!apiKey) return [];
+            console.log('Fetching NVIDIA NIM models...');
+            const r = await fetch('https://integrate.api.nvidia.com/v1/models', {
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+                signal: AbortSignal.timeout(15000)
+            });
+            if (!r.ok) return [];
+            const data = await r.json();
+            const freeModels = data.data
+                .filter(m => m.id && (m.id.includes('free') || m.id.includes('nemotron')))
+                .map(m => m.id);
+            console.log(`Found ${freeModels.length} NVIDIA NIM models:`, freeModels);
+            return freeModels;
+        } catch (e) {
+            console.log(`Failed to fetch NVIDIA NIM models: ${e.message}`);
+            return [];
+        }
     }
 }
 
@@ -120,6 +201,7 @@ function loadAgentsContext() {
 
 async function resolveConflicts() {
     const manager = new ProviderManager();
+    await manager.init();
 
     if (manager.providers.length === 0) {
         console.error('No valid API keys found');
