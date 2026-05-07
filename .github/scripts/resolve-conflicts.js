@@ -31,7 +31,7 @@ const PROVIDER_DEFAULT_MODELS = {
         'z-ai/glm-4.5-air:free',
         'openai/gpt-oss-120b:free'
     ],
-    DEEPSEEK: ['deepseek-chat'],
+    DEEPSEEK: ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat'],
     ZEN: ['opencode/mimo-v2-pro-free'],
     OPENCODE_ZEN: ['minimax-m2.5-free'],
     MINIMAX: ['minimax-m2.7'],
@@ -247,7 +247,7 @@ Resolved file content:`;
                     };
                 }
 
-                const timeout = provider.prefix === 'DEEPSEEK' || provider.prefix === 'BLTCY' ? 180000 : 60000;
+                const timeout = provider.prefix === 'DEEPSEEK' || provider.prefix === 'BLTCY' ? 300000 : 60000;
 
                 const response = await fetch(url, {
                     method: 'POST',
