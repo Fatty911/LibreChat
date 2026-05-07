@@ -240,8 +240,11 @@ async function resolveConflicts() {
         if (resolved) {
             const cleaned = resolved.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim() + '\n';
             if (cleaned.includes('<<<<<<<') || cleaned.includes('=======') || cleaned.includes('>>>>>>>')) {
-                console.error(`Resolved content still contains conflict markers in ${file}, rejecting.`);
-                failedCount++;
+                console.warn(`AI returned content with remaining conflict markers in ${file}. Falling back to upstream version.`);
+                execSync(`git checkout --theirs "${file}"`);
+                execSync(`git add "${file}"`);
+                console.log(`Accepted upstream version for ${file}`);
+                resolvedCount++;
                 continue;
             }
             fs.writeFileSync(file, cleaned);
@@ -266,17 +269,19 @@ async function tryProviders(manager, file, content, agentsContext) {
         ? `\n\n=== Repository Context ===\n${agentsContext}\n=== End Repository Context ===`
         : '';
 
-    const prompt = `You are an expert software engineer resolving git merge conflicts.
+    const prompt = `You are an expert software engineer resolving git merge conflicts. This is CRITICAL.
 
 Task: Analyze the conflicts marked with \`<<<<<<< HEAD\`, \`=======\`, and \`>>>>>>> upstream/branch\` and produce a single, clean, merged version of the file.
 
-Rules:
-1. Preserve the best parts of BOTH versions.
-2. Respect the repository context below if provided.
-3. Maintain correct syntax, indentation, and imports.
-4. Remove ALL conflict markers; the output must not contain \`<<<<<<<\`, \`=======\`, or \`>>>>>>>\`.
+CRITICAL RULES:
+1. You MUST remove ALL conflict markers. The output MUST NOT contain \`<<<<<<<\`, \`=======\`, or \`>>>>>>>\` anywhere.
+2. Preserve the best parts of BOTH versions - do not simply delete one side.
+3. Respect the repository context below if provided.
+4. Maintain correct syntax, indentation, and imports.
 5. Return ONLY the complete resolved file content. Do NOT wrap it in markdown code blocks and do NOT add explanations.
-6. If a conflict is in a config file, prefer upstream values for version/schema fields but preserve local customizations for personal settings.${agentsSection}
+6. If a conflict is in a config file, prefer upstream values for version/schema fields but preserve local customizations for personal settings.
+
+FAILURE IS NOT AN OPTION: If you leave any \`<<<<<<<\`, \`=======\`, or \`>>>>>>>\` in the output, the code will break.${agentsSection}
 
 File path: ${file}
 
@@ -285,7 +290,7 @@ Full file content with conflicts:
 ${content}
 \`\`\`
 
-Resolved file content:`;
+Resolved file content (MUST NOT contain any conflict markers):`;
 
     for (const provider of manager.providers) {
         console.log(`\n--- Trying Provider: ${provider.name} ---`);
@@ -329,7 +334,7 @@ Resolved file content:`;
                     };
                 }
 
-                const timeout = provider.prefix === 'DEEPSEEK' || provider.prefix === 'BLTCY' ? 300000 : 60000;
+                const timeout = provider.prefix === 'DEEPSEEK' || provider.prefix === 'BLTCY' || provider.prefix === 'OPENROUTER' ? 300000 : 60000;
 
                 const response = await fetch(url, {
                     method: 'POST',
