@@ -238,14 +238,15 @@ async function resolveConflicts() {
         const resolved = await tryProviders(manager, file, content, agentsContext);
 
         if (resolved) {
-            const cleaned = resolved.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim() + '\n';
+            let cleaned = resolved.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim() + '\n';
             if (cleaned.includes('<<<<<<<') || cleaned.includes('=======') || cleaned.includes('>>>>>>>')) {
-                console.warn(`AI returned content with remaining conflict markers in ${file}. Falling back to upstream version.`);
-                execSync(`git checkout --theirs "${file}"`);
-                execSync(`git add "${file}"`);
-                console.log(`Accepted upstream version for ${file}`);
-                resolvedCount++;
-                continue;
+                console.warn(`Whole-file AI resolution left markers in ${file}. Trying chunk-by-chunk resolution...`);
+                cleaned = await resolveByChunks(manager, file, cleaned, agentsContext);
+                if (!cleaned || cleaned.includes('<<<<<<<')) {
+                    console.error(`Chunk-by-chunk resolution also failed for ${file}.`);
+                    failedCount++;
+                    continue;
+                }
             }
             fs.writeFileSync(file, cleaned);
             execSync(`git add "${file}"`);
@@ -365,6 +366,136 @@ Resolved file content (MUST NOT contain any conflict markers):`;
 
             } catch (error) {
                 console.log(`     Request failed: ${error.message}`);
+            }
+        }
+    }
+    return null;
+}
+
+function extractConflictChunks(content) {
+    const chunks = [];
+    const lines = content.split('\n');
+    let i = 0;
+    while (i < lines.length) {
+        if (lines[i].startsWith('<<<<<<<')) {
+            const start = i;
+            let separator = -1;
+            let end = -1;
+            i++;
+            while (i < lines.length) {
+                if (lines[i].startsWith('=======')) {
+                    separator = i;
+                } else if (lines[i].startsWith('>>>>>>>')) {
+                    end = i;
+                    break;
+                }
+                i++;
+            }
+            if (separator !== -1 && end !== -1) {
+                const ours = lines.slice(start + 1, separator).join('\n');
+                const theirs = lines.slice(separator + 1, end).join('\n');
+                chunks.push({ start, end, ours, theirs, full: lines.slice(start, end + 1).join('\n') });
+            }
+        } else {
+            i++;
+        }
+    }
+    return chunks;
+}
+
+async function resolveByChunks(manager, file, content, agentsContext) {
+    const chunks = extractConflictChunks(content);
+    if (chunks.length === 0) return content;
+
+    console.log(`  Found ${chunks.length} conflict chunks to resolve individually`);
+    let result = content;
+
+    for (let idx = 0; idx < chunks.length; idx++) {
+        const chunk = chunks[idx];
+        console.log(`  Resolving chunk ${idx + 1}/${chunks.length}...`);
+        const resolvedChunk = await tryProvidersForChunk(manager, file, chunk, agentsContext);
+        if (resolvedChunk) {
+            result = result.replace(chunk.full, resolvedChunk.trim());
+        } else {
+            console.error(`  Failed to resolve chunk ${idx + 1}`);
+            return null;
+        }
+    }
+
+    return result;
+}
+
+async function tryProvidersForChunk(manager, file, chunk, agentsContext) {
+    const agentsSection = agentsContext
+        ? `\n\nRepository Context:\n${agentsContext.substring(0, 2000)}`
+        : '';
+
+    const prompt = `You are an expert developer resolving a SINGLE git merge conflict. Analyze both versions and produce the optimal merge.
+
+CRITICAL: Return ONLY the resolved code. NO conflict markers. NO markdown. NO explanations.
+
+File: ${file}
+
+LOCAL version (HEAD):
+\`\`\`
+${chunk.ours}
+\`\`\`
+
+UPSTREAM version:
+\`\`\`
+${chunk.theirs}
+\`\`\`
+
+Instructions:
+- Preserve the best parts of BOTH versions
+- Prefer upstream for bug fixes and new features
+- Preserve local for customizations and API keys
+- Remove ALL <<<<<<< / ======= / >>>>>>> markers${agentsSection}
+
+Resolved code:`;
+
+    for (const provider of manager.providers) {
+        for (const model of provider.models) {
+            try {
+                let url, headers, body;
+                if (provider.prefix === 'BLTCY') {
+                    url = `${provider.baseUrl}/v1/messages`;
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'x-api-key': provider.apiKey,
+                        'anthropic-version': '2023-06-01'
+                    };
+                    body = { model, max_tokens: 4096, messages: [{ role: 'user', content: prompt }] };
+                } else {
+                    url = `${provider.baseUrl}/chat/completions`;
+                    headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.apiKey}` };
+                    if (provider.prefix === 'OPENROUTER') {
+                        headers['HTTP-Referer'] = 'https://github.com/Fatty911/LibreChat';
+                        headers['X-Title'] = 'LibreChat Sync';
+                    }
+                    body = { model, temperature: 0.1, max_tokens: 4096, messages: [{ role: 'user', content: prompt }] };
+                }
+
+                const timeout = provider.prefix === 'DEEPSEEK' || provider.prefix === 'BLTCY' || provider.prefix === 'OPENROUTER' ? 300000 : 60000;
+                const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(timeout) });
+
+                if (!response.ok) continue;
+
+                const data = await response.json();
+                let resultText = '';
+                if (provider.prefix === 'BLTCY' && data.content) {
+                    resultText = data.content[0].text;
+                } else if (data.choices && data.choices[0] && data.choices[0].message) {
+                    resultText = data.choices[0].message.content;
+                }
+
+                if (resultText) {
+                    const cleaned = resultText.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim();
+                    if (!cleaned.includes('<<<<<<<') && !cleaned.includes('=======') && !cleaned.includes('>>>>>>>')) {
+                        return cleaned;
+                    }
+                }
+            } catch (e) {
             }
         }
     }
