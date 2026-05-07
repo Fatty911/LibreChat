@@ -21,20 +21,40 @@ const PROVIDER_BASE_URLS = {
     MODELSCOPE: 'https://api.modelscope.cn/v1'
 };
 
-// 2026 Default models
+// 2026 Default models - 使用真实存在的模型ID
 const PROVIDER_DEFAULT_MODELS = {
-    OPENROUTER: ['anthropic/claude-opus-4.6', 'google/gemini-3.1-pro-preview', 'openai/gpt-5.4'],
-    DEEPSEEK: ['deepseek-r1', 'deepseek-v3'],
+    OPENROUTER: [
+        'anthropic/claude-opus-4.7',
+        'anthropic/claude-sonnet-4.6', 
+        'openai/gpt-5.5-pro',
+        'google/gemini-3.1-pro-preview-customtools',
+        'deepseek/deepseek-v4-pro',
+        'x-ai/grok-4.3',
+        'minimax/minimax-m2.7'
+    ],
+    DEEPSEEK: ['deepseek-v4-pro', 'deepseek-v4-flash'],
     ZEN: ['opencode/mimo-v2-pro-free'],
-    MINIMAX: ['m2.7', 'abab6.5s-chat'],
+    MINIMAX: ['minimax-m2.7', 'abab6.5s-chat'],
     MOONSHOT: ['moonshot-v1-128k'],
-    MODAL: ['claude-opus-4.6'],
-    XAI: ['grok-4.20-beta-0309'],
-    OPENAI: ['gpt-5.4'],
+    MODAL: ['claude-opus-4.7'],
+    XAI: ['grok-4.3'],
+    OPENAI: ['gpt-5.5-pro'],
     QIANFAN_CODING: ['ernie-4.5-turbo-128k'],
     ZHIPU: ['glm-5.1'],
-    SILICONFLOW: ['deepseek-ai/DeepSeek-R1'],
+    SILICONFLOW: ['deepseek-ai/DeepSeek-V4-Pro'],
     MODELSCOPE: ['qwen/qwen3.6-plus']
+};
+
+// OpenRouter 模型ID映射 (artificialanalysis.ai 关键词 -> OpenRouter 真实ID)
+const OPENROUTER_MODEL_MAPPING = {
+    "claude": "anthropic/claude-opus-4.7",
+    "gemini": "google/gemini-3.1-pro-preview-customtools",
+    "gpt": "openai/gpt-5.5-pro",
+    "grok": "x-ai/grok-4.3",
+    "deepseek": "deepseek/deepseek-v4-pro",
+    "qwen": "qwen/qwen3.6-plus",
+    "minimax": "minimax/minimax-m2.7",
+    "mimo": "xiaomi/mimo-v2-pro"
 };
 
 class ProviderManager {
@@ -111,19 +131,8 @@ class ProviderManager {
             const keywords = ["gemini", "gpt", "claude", "glm", "minimax", "grok", "kimi", "mimo", "qwen", "deepseek"];
             const found = keywords.filter(kw => text.includes(kw));
             
-            const mapping = {
-                "claude": "anthropic/claude-opus-4.6",
-                "gemini": "google/gemini-3.1-pro-preview",
-                "gpt": "openai/gpt-5.4",
-                "grok": "xai/grok-4.20-beta-0309",
-                "deepseek": "deepseek/deepseek-r1",
-                "qwen": "qwen/qwen3.5-397b-a17b",
-                "minimax": "minimax/minimax-m2.7",
-                "mimo": "xiaomi/mimo-v2-pro"
-            };
-            
-            const result = found.map(kw => mapping[kw]).filter(Boolean);
-            console.log("Dynamically scraped top models (2026 specs):", result);
+            const result = found.map(kw => OPENROUTER_MODEL_MAPPING[kw]).filter(Boolean);
+            console.log("Dynamically scraped top models:", result);
             return result.length > 0 ? result : null;
         } catch (e) {
             console.log(`Failed to scrape leaderboard: ${e.message}`);
@@ -135,6 +144,7 @@ class ProviderManager {
         if (provider.prefix === 'OPENROUTER') {
             const scraped = await this.fetchTopModels();
             if (scraped) {
+                // 合并排行榜和默认模型，去重
                 return [...new Set([...scraped, ...provider.models])];
             }
         }
@@ -162,7 +172,7 @@ async function resolveConflicts() {
     const manager = new ProviderManager();
 
     if (manager.providers.length === 0) {
-        console.error('No valid API keys found in environment variables (e.g., OPENROUTER_API_KEY, BLTCY_API_KEY)');
+        console.error('No valid API keys found in environment variables (e.g., OPENROUTER_API_KEY, DEEPSEEK_API_KEY)');
         process.exit(1);
     }
 
@@ -280,7 +290,7 @@ Resolved file content:`;
 
                 if (!response.ok) {
                     const err = await response.text();
-                    console.log(`     ✗ HTTP ${response.status}: ${err.substring(0, 100)}`);
+                    console.log(`     ✗ HTTP ${response.status}: ${err.substring(0, 150)}`);
                     continue;
                 }
 

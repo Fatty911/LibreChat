@@ -97,6 +97,10 @@ ${upstreamSection}
 
         if (!createRes.ok) {
             const err = await createRes.text();
+            if (createRes.status === 410) {
+                console.log('Issues are disabled in this repository. Skipping issue creation.');
+                return;
+            }
             throw new Error(`GitHub API ${createRes.status}: ${err}`);
         }
 
