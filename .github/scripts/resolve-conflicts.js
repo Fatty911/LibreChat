@@ -123,6 +123,59 @@ class ProviderManager {
         return PROVIDER_DEFAULT_MODELS[prefix] || [];
     }
 
+    async _fetchLeaderboardModels() {
+        const leaderboardModels = new Set();
+        const extractKeywords = (text) => {
+            const brands = ['claude', 'gpt', 'gemini', 'deepseek', 'llama', 'qwen', 'mistral', 'grok', 'nemotron', 'minimax', 'gemma', 'poolside', 'cobuddy', 'hy3', 'yi', 'phi', 'command', 'cohere', 'mixtral', 'internlm', 'abab'];
+            const lower = text.toLowerCase();
+            brands.forEach(b => {
+                if (lower.includes(b)) leaderboardModels.add(b);
+            });
+        };
+
+        try {
+            console.log('Fetching arena.ai leaderboard...');
+            const r1 = await fetch('https://arena.ai/leaderboard/text', {
+                signal: AbortSignal.timeout(15000)
+            });
+            if (r1.ok) {
+                const text1 = await r1.text();
+                extractKeywords(text1);
+            }
+        } catch (e) {
+            console.log(`Failed to fetch arena.ai: ${e.message}`);
+        }
+
+        try {
+            console.log('Fetching artificialanalysis.ai leaderboard...');
+            const r2 = await fetch('https://artificialanalysis.ai/leaderboards/models', {
+                signal: AbortSignal.timeout(15000)
+            });
+            if (r2.ok) {
+                const text2 = await r2.text();
+                extractKeywords(text2);
+            }
+        } catch (e) {
+            console.log(`Failed to fetch artificialanalysis.ai: ${e.message}`);
+        }
+
+        console.log('Leaderboard keywords:', Array.from(leaderboardModels));
+        return leaderboardModels;
+    }
+
+    _filterByLeaderboard(models, leaderboardKeywords) {
+        if (leaderboardKeywords.size === 0) return models;
+        const filtered = models.filter(m => {
+            const lower = m.toLowerCase();
+            for (const kw of leaderboardKeywords) {
+                if (lower.includes(kw)) return true;
+            }
+            return false;
+        });
+        console.log(`Filtered ${models.length} -> ${filtered.length} models by leaderboard`);
+        return filtered;
+    }
+
     async _fetchOpenRouterFreeModels() {
         try {
             console.log('Fetching OpenRouter free models...');
@@ -131,10 +184,12 @@ class ProviderManager {
             });
             if (!r.ok) return [];
             const data = await r.json();
-            const freeModels = data.data
+            let freeModels = data.data
                 .filter(m => m.id && m.id.includes(':free'))
                 .map(m => m.id);
-            console.log(`Found ${freeModels.length} OpenRouter free models:`, freeModels.slice(0, 10));
+            const leaderboard = await this._fetchLeaderboardModels();
+            freeModels = this._filterByLeaderboard(freeModels, leaderboard);
+            console.log(`Found ${freeModels.length} OpenRouter free models after leaderboard filter:`, freeModels.slice(0, 10));
             return freeModels;
         } catch (e) {
             console.log(`Failed to fetch OpenRouter models: ${e.message}`);
@@ -153,10 +208,12 @@ class ProviderManager {
             });
             if (!r.ok) return [];
             const data = await r.json();
-            const freeModels = data.data
+            let freeModels = data.data
                 .filter(m => m.id && (m.id.includes('free') || m.id.includes('mimo') || m.id.includes('minimax')))
                 .map(m => m.id);
-            console.log(`Found ${freeModels.length} OpenCode-Zen models:`, freeModels);
+            const leaderboard = await this._fetchLeaderboardModels();
+            freeModels = this._filterByLeaderboard(freeModels, leaderboard);
+            console.log(`Found ${freeModels.length} OpenCode-Zen models after leaderboard filter:`, freeModels);
             return freeModels;
         } catch (e) {
             console.log(`Failed to fetch OpenCode-Zen models: ${e.message}`);
@@ -175,10 +232,12 @@ class ProviderManager {
             });
             if (!r.ok) return [];
             const data = await r.json();
-            const freeModels = data.data
+            let freeModels = data.data
                 .filter(m => m.id && (m.id.includes('free') || m.id.includes('nemotron')))
                 .map(m => m.id);
-            console.log(`Found ${freeModels.length} NVIDIA NIM models:`, freeModels);
+            const leaderboard = await this._fetchLeaderboardModels();
+            freeModels = this._filterByLeaderboard(freeModels, leaderboard);
+            console.log(`Found ${freeModels.length} NVIDIA NIM models after leaderboard filter:`, freeModels);
             return freeModels;
         } catch (e) {
             console.log(`Failed to fetch NVIDIA NIM models: ${e.message}`);
