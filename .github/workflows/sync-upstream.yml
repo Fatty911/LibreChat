@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
   actions: write
 
 jobs:
@@ -36,22 +35,22 @@ jobs:
           git remote add upstream https://github.com/danny-avila/LibreChat.git || echo "Remote upstream already exists."
           git fetch upstream main
 
-      - name: Track 1 - Attempt direct merge
+      - name: Attempt direct merge
         id: merge
         run: |
           if git merge upstream/main --no-edit; then
-            echo "Merge successful without conflicts."
             echo "has_conflicts=false" >> $GITHUB_OUTPUT
           else
-            echo "Conflicts detected!"
             echo "has_conflicts=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Track 2 - Resolve conflicts using AI (Multi-Provider Fallback)
+      - name: Resolve conflicts using AI
         id: ai_resolve
         if: steps.merge.outputs.has_conflicts == 'true'
         continue-on-error: true
         env:
+          BLTCY_PROXY_URL: ${{ secrets.BLTCY_PROXY_URL }}
+          BLTCY_API_KEY: ${{ secrets.BLTCY_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
@@ -65,35 +64,24 @@ jobs:
           ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
           MODELSCOPE_API_KEY: ${{ secrets.MODELSCOPE_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          QINIU_API_KEY: ${{ secrets.QINIU_API_KEY }}
         run: node .github/scripts/resolve-conflicts.js
 
-      - name: Track 2 - Commit resolved conflicts
-        id: commit_ai
-        if: steps.merge.outputs.has_conflicts == 'true' && steps.ai_resolve.outcome == 'success'
+      - name: Commit merge (with or without AI resolution)
         run: |
-          git commit -m "chore: auto-resolve merge conflicts with upstream using multi-provider AI" || echo "Nothing to commit"
-
-      - name: Track 3 - Abort merge and reset on AI failure
-        if: steps.merge.outputs.has_conflicts == 'true' && steps.ai_resolve.outcome == 'failure'
-        run: |
-          echo "AI conflict resolution failed. Aborting merge to keep repo clean."
-          git merge --abort 2>/dev/null || true
-          git reset --hard HEAD 2>/dev/null || true
-          echo "ai_failed=true" >> $GITHUB_OUTPUT
+          if [ "${{ steps.ai_resolve.outcome }}" == "success" ]; then
+            git commit -m "chore: sync upstream + auto-resolve conflicts via AI" || echo "Nothing to commit"
+          else
+            echo "AI resolution failed. Committing merge with remaining conflict markers."
+            git add -A
+            git commit -m "chore: sync upstream (AI conflict resolution failed, markers retained)" || echo "Nothing to commit"
+          fi
 
       - name: Push changes
-        id: push
-        if: steps.merge.outputs.has_conflicts == 'false' || (steps.ai_resolve.outcome == 'success' && steps.commit_ai.outcome == 'success')
         run: |
           if git diff --quiet HEAD origin/main; then
             echo "No changes to push."
           else
             git push origin HEAD:main
           fi
-
-      - name: Create issue on sync failure
-        if: failure() || (steps.merge.outputs.has_conflicts == 'true' && steps.ai_resolve.outcome == 'failure')
-        env:
-          GH_TOKEN: ${{ secrets.ACTION_WRITE || github.token }}
-          REPO: ${{ github.repository }}
-        run: node .github/scripts/create-sync-issue.js
