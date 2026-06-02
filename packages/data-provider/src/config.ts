@@ -901,6 +901,7 @@ const mcpServersSchema = z
     create: z.boolean().optional(),
     share: z.boolean().optional(),
     public: z.boolean().optional(),
+    configureObo: z.boolean().optional(),
     trustCheckbox: z
       .object({
         label: localizedStringSchema.optional(),
@@ -1079,7 +1080,7 @@ export type TRumConfig = {
   enabled: boolean;
   url: string;
   serviceName: string;
-  authMode: 'publicToken';
+  authMode: 'publicToken' | 'proxy';
   publicToken?: string;
   tracePropagationTargets?: string[];
   consoleCapture?: boolean;
