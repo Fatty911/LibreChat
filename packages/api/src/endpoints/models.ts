@@ -1,7 +1,6 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import { logger } from '@librechat/data-schemas';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import {
   Time,
   CacheKeys,
@@ -11,6 +10,7 @@ import {
   parseModelList,
 } from 'librechat-data-provider';
 import type { IUser } from '@librechat/data-schemas';
+import type { AxiosRequestConfig } from 'axios';
 import {
   processModelData,
   extractBaseURL,
@@ -19,6 +19,7 @@ import {
   deriveBaseURL,
   logAxiosError,
   inputSchema,
+  applyAxiosProxyConfig,
 } from '~/utils';
 import { standardCache, tokenConfigCache } from '~/cache';
 
@@ -174,10 +175,9 @@ export async function fetchModels({
       user: userObject,
     });
 
-    const options: {
+    const options: AxiosRequestConfig & {
       headers: Record<string, string>;
       timeout: number;
-      httpsAgent?: HttpsProxyAgent<string>;
     } = {
       headers: {
         ...resolvedHeaders,
@@ -203,10 +203,6 @@ export async function fetchModels({
       }
     }
 
-    if (process.env.PROXY) {
-      options.httpsAgent = new HttpsProxyAgent(process.env.PROXY);
-    }
-
     if (process.env.OPENAI_ORGANIZATION && baseURL?.includes('openai')) {
       options.headers['OpenAI-Organization'] = process.env.OPENAI_ORGANIZATION;
     }
@@ -215,6 +211,7 @@ export async function fetchModels({
     if (user && userIdQuery) {
       url.searchParams.append('user', user);
     }
+    applyAxiosProxyConfig(options, url);
     const res = await axios.get(url.toString(), options);
 
     const input = res.data;
