@@ -232,3 +232,6 @@ We thank [Locize](https://locize.com) for their translation management tools tha
     <img src="https://github.com/user-attachments/assets/d6b70894-6064-475e-bb65-92a9e23e0077" alt="Locize Logo" height="50">
   </a>
 </p>
+
+### 2026-07-05
+- 上游同步工作流状态确认：已有 sync.yml 正常运行
