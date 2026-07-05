@@ -23,13 +23,21 @@ const PROVIDER_BASE_URLS = {
 };
 
 const PROVIDER_DEFAULT_MODELS = {
-    // 仅限免费强模型
+    // 免费端点（优先尝试）
     NVIDIA_NIM: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free'],
     MODELSCOPE: ['MiniMax/MiniMax-M3'],
     OPENROUTER: ['nvidia/nemotron-3-ultra-550b-a55b:free'],
     OPENCODE_ZEN: ['nemotron-3-ultra-free', 'deepseek-v4-flash-free'],
     ZEN: ['nemotron-3-ultra-free', 'deepseek-v4-flash-free'],
     QINIU: ['nvidia/nemotron-3-ultra-550b-a55b-free'],
+    // 付费 Plan（免费全部不可用时兜底）
+    DEEPSEEK: ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat'],
+    ZHIPU: ['glm-5.1'],
+    MINIMAX: ['minimax-m2.7'],
+    MOONSHOT: ['moonshot-v1-128k'],
+    XAI: ['grok-4.3'],
+    OPENAI: ['gpt-4o'],
+    MODAL: ['claude-sonnet-4.6'],
 };
 
 class ProviderManager {
@@ -68,16 +76,23 @@ class ProviderManager {
         }
 
         providers.sort((a, b) => {
+            // 免费端点优先，付费 Plan 兜底
             const priority = {
-                BLTCY: 0,
-                OPENROUTER: 1,
-                DEEPSEEK: 2,
+                NVIDIA_NIM: 0,
+                MODELSCOPE: 1,
+                OPENROUTER: 2,
                 OPENCODE_ZEN: 3,
                 ZEN: 4,
-                NVIDIA_NIM: 5,
                 QINIU: 5,
-                XAI: 6,
-                OPENAI: 7
+                // 付费 Plan（免费全部不可用时兜底）
+                DEEPSEEK: 10,
+                ZHIPU: 11,
+                MINIMAX: 12,
+                MOONSHOT: 13,
+                XAI: 14,
+                OPENAI: 15,
+                MODAL: 16,
+                BLTCY: 17,
             };
             return (priority[a.prefix] || 99) - (priority[b.prefix] || 99);
         });
