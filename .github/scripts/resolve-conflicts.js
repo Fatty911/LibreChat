@@ -23,29 +23,13 @@ const PROVIDER_BASE_URLS = {
 };
 
 const PROVIDER_DEFAULT_MODELS = {
-    OPENROUTER: [
-        'nvidia/nemotron-3-super-120b-a12b:free',
-        'google/gemma-4-26b-a4b-it:free',
-        'minimax/minimax-m2.5:free',
-        'qwen/qwen3-next-80b-a3b-instruct:free',
-        'z-ai/glm-4.5-air:free',
-        'openai/gpt-oss-120b:free'
-    ],
-    DEEPSEEK: ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat'],
-    ZEN: ['opencode/mimo-v2-pro-free'],
-    OPENCODE_ZEN: ['minimax-m2.5-free'],
-    MINIMAX: ['minimax-m2.7'],
-    MOONSHOT: ['moonshot-v1-128k'],
-    MODAL: ['claude-sonnet-4.6'],
-    XAI: ['grok-4.3'],
-    OPENAI: ['gpt-4o'],
-    QIANFAN_CODING: ['ernie-4.5-turbo-128k'],
-    ZHIPU: ['glm-5.1'],
-    SILICONFLOW: ['deepseek-ai/DeepSeek-V4-Pro'],
-    MODELSCOPE: ['qwen/qwen3.6-plus'],
-    NVIDIA_NIM: ['nvidia/nemotron-3-super-120b-a12b'],
-    QINIU: ['nvidia/nemotron-3-super-120b-a12b-free'],
-    BLTCY: ['claude-sonnet-4-6-thinking']
+    // 仅限免费强模型
+    NVIDIA_NIM: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free'],
+    MODELSCOPE: ['MiniMax/MiniMax-M3'],
+    OPENROUTER: ['nvidia/nemotron-3-ultra-550b-a55b:free'],
+    OPENCODE_ZEN: ['nemotron-3-ultra-free', 'deepseek-v4-flash-free'],
+    ZEN: ['nemotron-3-ultra-free', 'deepseek-v4-flash-free'],
+    QINIU: ['nvidia/nemotron-3-ultra-550b-a55b-free'],
 };
 
 class ProviderManager {
